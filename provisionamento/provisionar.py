@@ -21,7 +21,8 @@ import time
 
 PROMPT_PRINCIPAL = "jcli : "
 PROMPT_SESSAO = "> "
-PALAVRAS_DE_ERRO = ("Unknown", "Error", "error", "Invalid", "must ", "Cannot", "not found", "Incorrect")
+DEBUG = os.environ.get("PROVISIONAR_DEBUG") == "1"
+PALAVRAS_DE_ERRO =("Unknown", "Error", "error", "Invalid", "must ", "Cannot", "not found", "Incorrect")
 
 # Chaves do fornecedor no JSON que vão direto para o smppccm
 CHAVES_SMPPCCM = (
@@ -36,7 +37,9 @@ class JCli:
     def __init__(self, host, port, usuario, senha, timeout=15):
         self.sock = socket.create_connection((host, port), timeout=timeout)
         self.buffer = b""
-        self._ler_ate(("Username: ",))
+        # O jcli só desenha o prompt "Username: " depois da negociação NAWS
+        # (tamanho de janela), que não fazemos; mas ele já aceita o usuário.
+        self._ler_ate(("Authentication required.", "Username: "))
         self._enviar(usuario)
         self._ler_ate(("Password: ",))
         self._enviar(senha)
@@ -51,7 +54,7 @@ class JCli:
         while True:
             texto = self._limpo()
             for p in prompts:
-                if texto.rstrip(" ").endswith(p.rstrip(" ")):
+                if texto.rstrip(" \n").endswith(p.rstrip(" ")):
                     self.buffer = b""
                     return texto
             try:
@@ -63,8 +66,9 @@ class JCli:
             self.buffer += pedaco
 
     def _limpo(self):
-        # Remove negociação telnet (IAC ...) e normaliza quebras de linha
+        # Remove negociação telnet (IAC ...), sequências ANSI e normaliza quebras de linha
         dados = re.sub(rb"\xff[\xfb-\xfe].|\xff[\xf0-\xfa]", b"", self.buffer)
+        dados = re.sub(rb"\x1b(\[[0-9;?]*[A-Za-z]|[A-Za-z])", b"", dados)
         return dados.decode(errors="replace").replace("\r", "")
 
     def cmd(self, linha, tolerar_erro=False):
@@ -72,6 +76,8 @@ class JCli:
         self._enviar(linha)
         saida = self._ler_ate((PROMPT_PRINCIPAL, PROMPT_SESSAO))
         corpo = saida.rsplit("\n", 1)[0] if "\n" in saida else ""
+        if DEBUG:
+            print(f"[jcli] {corpo.strip()}")
         if not tolerar_erro and any(p in corpo for p in PALAVRAS_DE_ERRO):
             raise RuntimeError(f"jcli recusou '{linha}':\n{corpo}")
         return corpo

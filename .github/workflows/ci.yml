@@ -25,7 +25,7 @@ jobs:
 
       - name: Provisionar
         timeout-minutes: 3
-        run: docker compose run --rm -T provisionar 2>&1 | tee provisionar.txt; exit ${PIPESTATUS[0]}
+        run: docker compose run --rm -T -e PROVISIONAR_DEBUG=1 provisionar 2>&1 | tee provisionar.txt; exit ${PIPESTATUS[0]}
 
       - name: Enviar SMS e conferir DLR e MO
         run: |

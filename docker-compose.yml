@@ -98,6 +98,7 @@ services:
       JCLI_PORT: 8990
       JCLI_USER: ${JCLI_USER:-jcliadmin}
       JCLI_PASSWORD: ${JCLI_PASSWORD:-jclipwd}
+      PROVISIONAR_DEBUG: ${PROVISIONAR_DEBUG:-0}
     volumes:
       - ./provisionamento:/app:ro
       - ./config:/config:ro
