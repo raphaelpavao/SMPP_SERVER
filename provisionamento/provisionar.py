@@ -54,7 +54,10 @@ class JCli:
                 if texto.rstrip(" ").endswith(p.rstrip(" ")):
                     self.buffer = b""
                     return texto
-            pedaco = self.sock.recv(4096)
+            try:
+                pedaco = self.sock.recv(4096)
+            except socket.timeout:
+                raise RuntimeError(f"jcli não mostrou {prompts}. Bytes recebidos: {self.buffer!r}") from None
             if not pedaco:
                 raise RuntimeError("Conexão com o jcli encerrada. Recebido até agora:\n" + texto)
             self.buffer += pedaco
@@ -190,7 +193,7 @@ def main():
             jcli = JCli(host, port, os.environ.get("JCLI_USER", "jcliadmin"),
                         os.environ.get("JCLI_PASSWORD", "jclipwd"))
             break
-        except OSError:
+        except ConnectionRefusedError:
             if tentativa == 29:
                 raise
             time.sleep(2)

@@ -9,9 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -24,7 +24,8 @@ jobs:
         run: docker compose --profile dev up -d --build --wait
 
       - name: Provisionar
-        run: docker compose run --rm provisionar
+        timeout-minutes: 3
+        run: docker compose run --rm -T provisionar 2>&1 | tee provisionar.txt; exit ${PIPESTATUS[0]}
 
       - name: Enviar SMS e conferir DLR e MO
         run: |
@@ -35,6 +36,14 @@ jobs:
           grep -q "stat:DELIVRD" saida.txt
           grep -q "ECO: Teste CI" saida.txt
 
+      # Os logs dos passos só aparecem para quem está logado no GitHub; as
+      # anotações aparecem para todos, então o diagnóstico vai para elas.
       - name: Logs em caso de falha
         if: failure()
-        run: docker compose --profile dev logs --no-color
+        run: |
+          docker compose --profile dev logs --no-color
+          anotar() { echo "::error title=$1::$(tail -c 3500 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"; }
+          [ -f provisionar.txt ] && anotar provisionar < provisionar.txt
+          [ -f saida.txt ] && anotar cliente_teste < saida.txt
+          docker compose logs --no-color --tail 40 jasmin | anotar jasmin
+          docker compose --profile dev logs --no-color --tail 20 smsc-simulador | anotar simulador
