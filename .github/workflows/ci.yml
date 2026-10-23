@@ -1,0 +1,40 @@
+name: teste-ponta-a-ponta
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configuração de exemplo (aponta para o simulador)
+        run: |
+          cp .env.example .env
+          cp config/gateway.example.json config/gateway.json
+
+      - name: Subir Jasmin + simulador
+        run: docker compose --profile dev up -d --build --wait
+
+      - name: Provisionar
+        run: docker compose run --rm provisionar
+
+      - name: Enviar SMS e conferir DLR e MO
+        run: |
+          pip install -r ferramentas/requirements.txt
+          sleep 10  # tempo para o Jasmin fazer bind no simulador
+          python ferramentas/cliente_teste.py --usuario cliente1 --senha cli123 \
+            --destino 5500999990001 --texto "Teste CI" --espera 10 | tee saida.txt
+          grep -q "stat:DELIVRD" saida.txt
+          grep -q "ECO: Teste CI" saida.txt
+
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose --profile dev logs --no-color

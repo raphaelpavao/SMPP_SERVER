@@ -1,0 +1,42 @@
+{
+  "_comentario": "Copie para gateway.json (fica fora do git) e preencha. Este exemplo aponta para o simulador local.",
+
+  "fornecedores": [
+    {
+      "cid": "fornecedor1",
+      "host": "smsc-simulador",
+      "port": 2775,
+      "username": "simulador",
+      "password": "sim123",
+      "systype": "",
+      "bind": "transceiver",
+      "ssl": "no",
+      "submit_throughput": 10,
+      "src_ton": 1,
+      "src_npi": 1,
+      "dst_ton": 1,
+      "dst_npi": 1,
+      "bind_ton": 0,
+      "bind_npi": 1,
+      "elink_interval": 30,
+      "dlr_msgid": 0
+    }
+  ],
+
+  "rota_mt_padrao": "fornecedor1",
+
+  "grupos": ["clientes"],
+
+  "clientes": [
+    {
+      "uid": "cliente1",
+      "gid": "clientes",
+      "username": "cliente1",
+      "password": "cli123",
+      "_mo_destinos": "Regex dos números do cliente: MO enviado para eles é entregue a este cliente",
+      "mo_destinos": ["^551140040000$"]
+    }
+  ],
+
+  "cliente_mo_padrao": "cliente1"
+}
