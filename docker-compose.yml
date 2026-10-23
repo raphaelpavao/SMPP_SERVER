@@ -3,6 +3,7 @@
 #   docker compose up -d                       -> produção (Jasmin + Redis + RabbitMQ)
 #   docker compose --profile dev up -d         -> + simulador de SMSC para testes locais
 #   docker compose run --rm provisionar        -> aplica config/gateway.json no Jasmin
+#   docker compose --profile painel up -d      -> + Jasmin Web Panel em http://localhost:8999
 
 name: smpp-gateway
 
@@ -51,6 +52,16 @@ services:
       REDIS_CLIENT_PORT: 6379
       AMQP_BROKER_HOST: rabbitmq
       AMQP_BROKER_PORT: 5672
+    # Liga publish_submit_sm_resp (o histórico do painel precisa dele para saber
+    # se o fornecedor aceitou a mensagem) e segue para o entrypoint original.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - >-
+        grep -q '^publish_submit_sm_resp' $$CONFIG_PATH/jasmin.cfg ||
+        sed -i '/^\[sm-listener\]/a publish_submit_sm_resp = True' $$CONFIG_PATH/jasmin.cfg;
+        exec /docker-entrypoint.sh "$$@"
+      - --
     # A ordem dos argumentos importa: o entrypoint da imagem olha o 2º argumento
     # para decidir se sobe o interceptord.
     command:
@@ -104,7 +115,107 @@ services:
       - ./config:/config:ro
     entrypoint: ["python", "-u", "provisionar.py", "/config/gateway.json"]
 
+  # --- Jasmin Web Panel (https://github.com/101t/jasmin-web-panel) ---------
+
+  painel:
+    profiles: ["painel"]
+    image: tarekaec/jasmin_web_panel:${PAINEL_VERSION:-3.1.0}
+    restart: unless-stopped
+    environment: &painel-env
+      DJANGO_SETTINGS_MODULE: config.settings.pro
+      DEBUG: "False"
+      SECRET_KEY: ${PAINEL_SECRET_KEY:?defina PAINEL_SECRET_KEY no .env}
+      ALLOWED_HOSTS: "*"
+      TIME_ZONE: America/Sao_Paulo
+      PRODB_URL: postgres://painel:${PAINEL_DB_PASSWORD:-painel}@painel-db:5432/painel
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 1  # o Jasmin usa o db 0
+      TELNET_HOST: jasmin
+      TELNET_PORT: 8990
+      TELNET_USERNAME: ${JCLI_USER:-jcliadmin}
+      TELNET_PW: ${JCLI_PASSWORD:-jclipwd}
+      TELNET_TIMEOUT: 10
+      HTTP_HOST: http://jasmin
+      HTTP_PORT: 1401
+      SMPP_HOST: jasmin
+      SMPP_PORT: 2775
+      SUBMIT_LOG: "True"
+    ports:
+      - "127.0.0.1:${PAINEL_PORT:-8999}:8000"
+    volumes:
+      - painel-public:/app/public
+      - painel-logs:/app/logs
+    depends_on:
+      painel-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      jasmin:
+        condition: service_started
+
+  painel-celery:
+    profiles: ["painel"]
+    image: tarekaec/jasmin_web_panel:${PAINEL_VERSION:-3.1.0}
+    restart: unless-stopped
+    entrypoint: ["bash", "./docker-entrypoint-celery.sh"]
+    environment: *painel-env
+    healthcheck:
+      disable: true
+    depends_on:
+      painel-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  painel-db:
+    profiles: ["painel"]
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: painel
+      POSTGRES_USER: painel
+      POSTGRES_PASSWORD: ${PAINEL_DB_PASSWORD:-painel}
+    volumes:
+      - painel-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U painel -d painel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  painel-sms-logger:
+    profiles: ["painel"]
+    build:
+      context: ./painel
+      dockerfile: Dockerfile.sms_logger
+      args:
+        JASMIN_VERSION: ${JASMIN_VERSION:-0.11.0}
+    restart: unless-stopped
+    environment:
+      AMQP_BROKER_HOST: rabbitmq
+      AMQP_BROKER_PORT: 5672
+      AMQP_SPEC_FILE: /etc/jasmin/resource/amqp0-9-1.xml
+      DB_TYPE_MYSQL: 0
+      DB_HOST: painel-db
+      DB_DATABASE: painel
+      DB_TABLE: submit_log
+      DB_USER: painel
+      DB_PASS: ${PAINEL_DB_PASSWORD:-painel}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      # A tabela submit_log é criada pelas migrations do painel; se o logger
+      # subir antes, ele cria a tabela e as migrations falham.
+      painel:
+        condition: service_healthy
+      jasmin:
+        condition: service_started
+
 volumes:
+  painel-public:
+  painel-logs:
+  painel-db-data:
   redis-data:
   rabbitmq-data:
   jasmin-store:

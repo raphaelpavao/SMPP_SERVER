@@ -1,0 +1,9 @@
+# Consumidor que grava no PostgreSQL do painel cada submit_sm, submit_sm_resp e DLR
+# publicados pelo Jasmin no RabbitMQ (tela "Submit Log" do painel).
+# Usa a imagem do Jasmin porque o script depende de txamqp, smpp.pdu e da spec AMQP dela.
+ARG JASMIN_VERSION=0.11.0
+FROM jookies/jasmin:${JASMIN_VERSION}
+RUN pip install --no-cache-dir psycopg2-binary mysql-connector-python
+COPY sms_logger.py /opt/sms_logger.py
+ENTRYPOINT []
+CMD ["python", "-u", "/opt/sms_logger.py"]

@@ -48,6 +48,29 @@ Saída esperada: `submit_sm_resp`, depois o `DLR` (stat:DELIVRD) e o `MO` "ECO: 
 
 Logs: `docker compose logs -f jasmin smsc-simulador`.
 
+## Painel web (Jasmin Web Panel)
+
+Interface com login para operar o gateway: fornecedores (SMPPCCM), clientes,
+grupos, filtros, rotas MT/MO, envio de teste e histórico de mensagens
+(Submit Logs, com exportação CSV/Excel). Projeto comunitário
+[101t/jasmin-web-panel](https://github.com/101t/jasmin-web-panel) (MIT).
+
+```bash
+docker compose --profile dev --profile painel up -d
+```
+
+Acesse http://localhost:8999. Login inicial: `admin` / `secret` — **troque no
+primeiro acesso** (Profile). Exige `PAINEL_SECRET_KEY` no `.env`.
+
+Peças do perfil `painel`: `painel` (Django), `painel-celery` (tarefas),
+`painel-db` (PostgreSQL) e `painel-sms-logger` (lê do RabbitMQ cada
+submit_sm/resposta/DLR e grava na tabela `submit_log`). O Jasmin sobe com
+`publish_submit_sm_resp = True` para o histórico ter o status do fornecedor.
+
+O painel altera o Jasmin pelo jcli. Se você usar o painel, **não rode o
+`provisionar`** no mesmo ambiente: ele recria tudo a partir do `gateway.json` e
+apaga o que foi feito pelo painel.
+
 ## Administração (jcli)
 
 O jcli fica só em `127.0.0.1:8990` (usuário/senha do `.env`). Num servidor Linux:
