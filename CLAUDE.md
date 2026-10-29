@@ -32,6 +32,8 @@ Teste: `python ferramentas/cliente_teste.py --usuario cliente1 --senha cli123 --
 
 - jcli é telnet com twisted/recvline: o prompt `Username:` só aparece após negociação NAWS;
   o script manda o usuário logo após "Authentication required.". Remover IAC e ANSI da saída.
+- `jasmind -u/-p` só carrega o perfil; o login do jcli vem de `[jcli] admin_username/admin_password` (md5 hex)
+  no `jasmin.cfg` — o entrypoint do compose grava a partir do `.env`. Senha de usuário SMPP: máx. 8 caracteres.
 - Jasmin traduz o message_id do fornecedor para um UUID próprio; DLR chega ao cliente com o UUID.
 - CI (GitHub Actions) sobe Jasmin + simulador, provisiona e confere DLR e MO. Logs do Actions exigem
   login, mas as anotações não: em falha, o CI joga o diagnóstico nas anotações
@@ -49,7 +51,16 @@ Teste: `python ferramentas/cliente_teste.py --usuario cliente1 --senha cli123 --
       Nível 3 (portal do cliente, faturamento Easy) como aplicação separada lendo `submit_log`/API do painel.
 - [ ] Configurar SMSC real no `gateway.json`/painel (host, porta, system_id, bind, TON/NPI, throughput,
       VPN/TLS) — senha nunca no chat. IP do servidor precisa estar liberado no SMSC.
-- [ ] Deploy em servidor Linux; trocar senhas (jcli, RabbitMQ, painel); firewall na 2775; backup dos volumes.
+- [x] Deploy no GCP (29/10/2026): projeto `gateway-smpp`, VM `smpp-gw` (e2-medium, `southamerica-east1-a`,
+      Ubuntu 24.04), IP fixo `34.39.247.250` (`smpp-ip`). Projeto em `/opt/smpp-gateway`, instalado por
+      `deploy/instalar_vm.sh` (gera `.env` com senhas aleatórias só na VM). Firewall GCP: `vpn-surf`
+      (UDP 500/4500 + ESP dos IPs da Surf), `smpp-clientes` (TCP 2775). Teste com simulador OK (envio, DLR, MO).
+      gcloud no Windows: `%LOCALAPPDATA%\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd`; comandos remotos
+      vão melhor como script (`gcloud compute scp` + `ssh --command="sudo bash /tmp/x.sh"`) — aspas quebram no plink.
+- [ ] Na VM: trocar senha do painel, RabbitMQ guest; restringir SSH; backup (snapshots); remover simulador e
+      `cliente1` de teste quando a Surf estiver configurada.
+- [ ] Fornecedor Surf: VPN IPsec (strongSwan na VM) + bind TRX em 170.244.199.43/.55, até 4 binds,
+      TON/NPI 1/1, enquire_link 60 s. Formulário "VPN and SMPP - Padrao.docx" a preencher com o IP acima.
 - [ ] Decidir fonte da verdade da configuração (painel × gateway.json) para produção.
 
 ## Como o usuário gosta de trabalhar

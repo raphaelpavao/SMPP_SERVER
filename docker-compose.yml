@@ -52,14 +52,20 @@ services:
       REDIS_CLIENT_PORT: 6379
       AMQP_BROKER_HOST: rabbitmq
       AMQP_BROKER_PORT: 5672
+      JCLI_USER: ${JCLI_USER:-jcliadmin}
+      JCLI_PASSWORD: ${JCLI_PASSWORD:-jclipwd}
     # Liga publish_submit_sm_resp (o histórico do painel precisa dele para saber
-    # se o fornecedor aceitou a mensagem) e segue para o entrypoint original.
+    # se o fornecedor aceitou a mensagem), grava usuário/senha do jcli (md5) no
+    # jasmin.cfg — o -u/-p do jasmind só carrega o perfil, não define o login —
+    # e segue para o entrypoint original.
     entrypoint:
       - /bin/bash
       - -c
       - >-
         grep -q '^publish_submit_sm_resp' $$CONFIG_PATH/jasmin.cfg ||
         sed -i '/^\[sm-listener\]/a publish_submit_sm_resp = True' $$CONFIG_PATH/jasmin.cfg;
+        sed -i '/^admin_username\|^admin_password/d' $$CONFIG_PATH/jasmin.cfg;
+        sed -i "/^\[jcli\]/a admin_username = $$JCLI_USER\nadmin_password = $$(printf %s "$$JCLI_PASSWORD" | md5sum | cut -d' ' -f1)" $$CONFIG_PATH/jasmin.cfg;
         exec /docker-entrypoint.sh "$$@"
       - --
     # A ordem dos argumentos importa: o entrypoint da imagem olha o 2º argumento
