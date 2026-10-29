@@ -1,17 +1,19 @@
-"""Regras de cadastro de DIDs: importação em lote e troca de provedor."""
+"""Regras de negócio: cadastro de DIDs (importação, troca de provedor) e mensagens."""
 
+import logging
 import re
 from dataclasses import dataclass, field
 
-from django.db import transaction
-from django.utils import timezone
-
 from django.conf import settings
+from django.db import transaction
 from django.urls import reverse
+from django.utils import timezone
 
 from . import jasmin
 from .models import DID, HistoricoDID, Mensagem
 from .validadores import PADRAO_DID, normalizar_did
+
+log = logging.getLogger(__name__)
 
 # Uma faixa maior que isso quase sempre é erro de digitação.
 LIMITE_FAIXA = 10_000
@@ -173,6 +175,11 @@ def enviar_sms(did, destino, texto, usuario):
         msg.status = Mensagem.Status.NA_FILA
     except jasmin.ErroJasmin as erro:
         msg.status, msg.status_detalhe = Mensagem.Status.FALHOU, str(erro)[:200]
+    except Exception:
+        # Qualquer outra falha também fica registrada na mensagem, sem derrubar a tela.
+        log.exception("Erro inesperado ao enviar a mensagem %s", msg.pk)
+        msg.id_jasmin = None
+        msg.status, msg.status_detalhe = Mensagem.Status.FALHOU, "erro interno ao falar com o gateway"
     msg.save(update_fields=["id_jasmin", "status", "status_detalhe", "atualizada_em"])
     return msg
 

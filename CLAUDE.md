@@ -66,6 +66,9 @@ Teste: `python ferramentas/cliente_teste.py --usuario cliente1 --senha cli123 --
   MO chega com `coding` como byte cru (`chr(8)`), use `binary` (hex) para decodificar; DLR/MO só são
   dados como entregues com corpo `ACK/Jasmin` (senão 3 tentativas a cada 30 s). Mensagem enviada logo
   após o Jasmin reiniciar pode ser descartada sem DLR (fica "na fila").
+- RabbitMQ ≥3.8 fecha o canal de consumidor que segura mensagem sem ack por 30 min (`consumer_timeout`);
+  o Jasmin não se recupera (filas com 0 consumers, HTTP /send responde `Success "[Failure instance...]"`).
+  Compose desliga o limite (`RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS`). Diagnóstico: `rabbitmqctl list_queues name consumers`.
 - CI (GitHub Actions) sobe Jasmin + simulador, provisiona e confere DLR e MO. Logs do Actions exigem
   login, mas as anotações não: em falha, o CI joga o diagnóstico nas anotações
   (ler via `api.github.com/repos/raphaelpavao/SMPP_SERVER/check-runs/<job>/annotations`).

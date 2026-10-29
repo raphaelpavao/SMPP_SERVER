@@ -233,6 +233,13 @@ class DIDAdmin(IsolamentoProvedorMixin, ModelAdmin):
         n = queryset.update(ativo=False)
         self.message_user(request, f"{n} DID(s) desativado(s).", messages.WARNING)
 
+    def get_deleted_objects(self, objs, request):
+        # O histórico não se apaga à mão, mas vai junto quando o DID é excluído;
+        # sem isto o Django exige permissão de excluir histórico e responde 403.
+        apagados, contagem, sem_permissao, protegidos = super().get_deleted_objects(objs, request)
+        sem_permissao.discard(HistoricoDID._meta.verbose_name)
+        return apagados, contagem, sem_permissao, protegidos
+
     @action(description="Importar em lote", icon="upload", url_path="importar", permissions=["add"])
     def importar(self, request):
         form = ImportacaoForm(request.POST or None, request.FILES or None)

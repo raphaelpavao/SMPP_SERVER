@@ -64,7 +64,9 @@ def enviar(origem, destino, texto, url_dlr):
     except (urllib.error.URLError, TimeoutError) as erro:
         raise ErroJasmin(f"gateway indisponível: {erro}") from erro
 
-    achado = re.match(r'Success "([^"]+)"', corpo.strip())
+    # Com falha interna o Jasmin ainda responde 200 'Success "[Failure instance: ...]"':
+    # só vale como aceite se vier um ID de verdade (UUID).
+    achado = re.match(r'Success "([0-9a-fA-F-]{36})"$', corpo.strip())
     if not achado:
         raise ErroJasmin(f"resposta inesperada do gateway: {corpo.strip()[:150]}")
     return achado.group(1)

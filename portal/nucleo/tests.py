@@ -100,6 +100,14 @@ class IsolamentoTest(TestCase):
         ev = HistoricoDID.objects.get(did=self.did_b)
         self.assertEqual((ev.evento, ev.provedor_anterior, ev.provedor_novo), ("transferencia", self.b, self.a))
 
+    def test_equipe_tip_exclui_did_com_historico(self):
+        importar_dids("5511999990009", self.a, self.tip)
+        did = DID.objects.get(numero="5511999990009")
+        self.client.force_login(self.tip)
+        resp = self.client.post(reverse("admin:nucleo_did_delete", args=[did.pk]), {"post": "yes"})
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(DID.objects.filter(pk=did.pk).exists())
+
     def test_painel_abre_para_os_dois_perfis(self):
         for usuario in (self.tip, self.usuario_a):
             self.client.force_login(usuario)
@@ -191,3 +199,22 @@ class MensagensTest(TestCase):
         self.assertEqual(partes_sms("a" * 161), 2)
         self.assertEqual(partes_sms("ã" * 70), 1)
         self.assertEqual(partes_sms("ã" * 71), 2)
+
+
+class RespostaJasminTest(TestCase):
+    def responder(self, corpo):
+        resposta = mock.MagicMock()
+        resposta.read.return_value = corpo.encode()
+        resposta.__enter__.return_value = resposta
+        return mock.patch("urllib.request.urlopen", return_value=resposta)
+
+    def test_aceita_uuid(self):
+        with self.responder('Success "b6fcec8b-0deb-4e2e-8504-54d8c1a9db16"'):
+            self.assertEqual(jasmin.enviar("5511999990001", "5511988887777", "oi", "http://x/"),
+                             "b6fcec8b-0deb-4e2e-8504-54d8c1a9db16")
+
+    def test_falha_interna_com_success_vira_erro(self):
+        # Caso real: canal do RabbitMQ fechado e o Jasmin ainda responde 200 "Success".
+        corpo = 'Success "[Failure instance: Traceback: <class \'txamqp.client.ChannelClosed\'>: ...]"'
+        with self.responder(corpo), self.assertRaises(jasmin.ErroJasmin):
+            jasmin.enviar("5511999990001", "5511988887777", "oi", "http://x/")

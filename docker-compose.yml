@@ -27,6 +27,11 @@ services:
     image: rabbitmq:3.13-management-alpine
     restart: unless-stopped
     hostname: rabbitmq
+    environment:
+      # O Jasmin segura mensagens sem confirmar (reenvios com atraso, falhas internas).
+      # Com o padrão de 30 min o RabbitMQ fecha o canal e o Jasmin para de consumir
+      # as filas sem se recuperar; desligamos o limite.
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit consumer_timeout undefined"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     ports:
