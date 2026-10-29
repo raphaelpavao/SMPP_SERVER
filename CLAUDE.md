@@ -91,6 +91,13 @@ Teste: `python ferramentas/cliente_teste.py --usuario cliente1 --senha cli123 --
       (UDP 500/4500 + ESP dos IPs da Surf), `smpp-clientes` (TCP 2775). Teste com simulador OK (envio, DLR, MO).
       gcloud no Windows: `%LOCALAPPDATA%\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd`; comandos remotos
       vão melhor como script (`gcloud compute scp` + `ssh --command="sudo bash /tmp/x.sh"`) — aspas quebram no plink.
+- [x] Portal na VM (29/10/2026): perfis `dev painel portal`, acesso por túnel SSH
+      (`gcloud compute ssh smpp-gw ... -- -L 8001:localhost:8000 -N` → http://localhost:8001). VM não tem git:
+      atualizar com `git archive` do índice (LF; a cópia local tem CRLF) + `deploy/atualizar_vm.sh`
+      (preserva .env/gateway.json, gera segredos que faltam, reprovisiona). Senha do admin só no .env da VM.
+- [ ] Investigar: 1ª mensagem após reiniciar/reprovisionar o Jasmin é descartada
+      (`AttributeError 'NoneType' .get` em listeners.py); as seguintes passam.
+- [ ] Link público do portal: subdomínio + HTTPS (Caddy) + porta 443 no firewall.
 - [ ] Na VM: trocar senha do painel, RabbitMQ guest; restringir SSH; backup (snapshots); remover simulador e
       `cliente1` de teste quando a Surf estiver configurada.
 - [ ] Fornecedor Surf: VPN IPsec (strongSwan na VM) + bind TRX em 170.244.199.43/.55, até 4 binds,

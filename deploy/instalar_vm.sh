@@ -3,12 +3,14 @@
 # do diretório do projeto já copiado para /opt/smpp-gateway).
 #
 #   sudo bash deploy/instalar_vm.sh
+#   sudo PERFIS="dev painel portal" bash deploy/instalar_vm.sh   # com o simulador
 #
-# Idempotente: pode rodar de novo a cada atualização. Na primeira vez gera o
-# .env com senhas aleatórias (ficam só na VM, em /opt/smpp-gateway/.env).
+# Idempotente: pode rodar de novo a cada atualização. Senhas que faltam no .env
+# são geradas aleatoriamente (ficam só na VM, em /opt/smpp-gateway/.env).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+PERFIS="${PERFIS:-painel portal}"
 
 # --- Docker -----------------------------------------------------------------
 if ! command -v docker >/dev/null; then
@@ -22,20 +24,34 @@ if ! command -v docker >/dev/null; then
   apt-get install -y -q docker-ce docker-ce-cli containerd.io docker-compose-plugin
 fi
 
-# --- .env com senhas aleatórias (só na primeira vez) ------------------------
+# --- .env com senhas aleatórias ---------------------------------------------
+senha() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c "${1:-24}"; }
+
 if [ ! -f .env ]; then
-  senha() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c "${1:-24}"; }
   cp .env.example .env
   sed -i \
     -e "s|^JCLI_PASSWORD=.*|JCLI_PASSWORD=$(senha)|" \
     -e "s|^PAINEL_SECRET_KEY=.*|PAINEL_SECRET_KEY=$(senha 50)|" \
     -e "s|^PAINEL_DB_PASSWORD=.*|PAINEL_DB_PASSWORD=$(senha)|" \
     .env
+  # As variáveis do portal vêm do exemplo com valores fixos: são trocadas abaixo.
+  sed -i '/^PORTAL_\(SECRET_KEY\|DB_PASSWORD\|JASMIN_SENHA\|INTERNO_TOKEN\|ADMIN_PASSWORD\)=/d' .env
   chmod 600 .env
   echo ".env criado com senhas aleatórias"
 fi
 
-# --- Sobe Jasmin + painel ---------------------------------------------------
-docker compose --profile painel pull -q
-docker compose --profile painel up -d --build --remove-orphans
-docker compose --profile painel ps
+# Acrescenta ao .env o que ainda não existe (instalações anteriores ao portal).
+garantir() { grep -q "^$1=" .env || { echo "$1=$2" >> .env; echo "  + $1"; }; }
+garantir PORTAL_SECRET_KEY "$(senha 50)"
+garantir PORTAL_DB_PASSWORD "$(senha)"
+garantir PORTAL_JASMIN_SENHA "$(senha 8)"   # usuário SMPP/HTTP do Jasmin: máx. 8 caracteres
+garantir PORTAL_INTERNO_TOKEN "$(senha 32)"
+garantir PORTAL_ADMIN_USER admin
+garantir PORTAL_ADMIN_PASSWORD "$(senha 16)"
+
+# --- Sobe os serviços -------------------------------------------------------
+ARGS=()
+for p in $PERFIS; do ARGS+=(--profile "$p"); done
+docker compose "${ARGS[@]}" pull -q --ignore-buildable
+docker compose "${ARGS[@]}" up -d --build --remove-orphans
+docker compose "${ARGS[@]}" ps
