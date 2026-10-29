@@ -35,8 +35,26 @@
       "password": "cli123",
       "_mo_destinos": "Regex dos números do cliente: MO enviado para eles é entregue a este cliente",
       "mo_destinos": ["^551140040000$"]
+    },
+    {
+      "_comentario": "Usuário que o portal TIP usa na API HTTP do Jasmin. Senha no .env (máx. 8 caracteres).",
+      "uid": "portal",
+      "gid": "clientes",
+      "username": "portal",
+      "password": "${PORTAL_JASMIN_SENHA}"
     }
   ],
 
+  "_conectores_http": "Para onde o Jasmin entrega MO por HTTP. O token vem do .env.",
+  "conectores_http": [
+    {
+      "cid": "portal",
+      "url": "http://portal.interno:8000/interno/jasmin/${PORTAL_INTERNO_TOKEN}/mo/",
+      "method": "POST"
+    }
+  ],
+
+  "_mo_padrao_http": "MO que não casou com nenhum cliente SMPP vai para o portal (ele acha o dono pelo DID).",
+  "mo_padrao_http": "portal",
   "cliente_mo_padrao": "cliente1"
 }

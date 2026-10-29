@@ -1,0 +1,48 @@
+{% extends "admin/base_site.html" %}
+{% load i18n unfold %}
+
+{% block content %}
+    {% component "unfold/components/card.html" with title="Enviar SMS" description="A mensagem sai pelo DID escolhido. A entrega aparece em Mensagens enviadas." %}
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                {% include "unfold/helpers/form_errors.html" with errors=form.non_field_errors %}
+            {% endif %}
+            {% for field in form %}
+                {% include "unfold/helpers/field.html" with field=field %}
+            {% endfor %}
+            <p id="contador" class="text-subtle" style="margin:-.5rem 0 1rem;"></p>
+            <div style="display:flex; gap:.5rem;">
+                {% component "unfold/components/button.html" with submit=1 icon="send" %}Enviar{% endcomponent %}
+                {% url "admin:nucleo_mensagemenviada_changelist" as voltar %}
+                {% component "unfold/components/button.html" with href=voltar variant="default" %}Voltar{% endcomponent %}
+            </div>
+        </form>
+    {% endcomponent %}
+
+    <script>
+        // Mesma regra de nucleo/jasmin.py:partes_sms, só para orientar quem digita.
+        (function () {
+            const gsm = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+            const ext = "^{}\\[~]|€\f";
+            const campo = document.getElementById("id_texto");
+            const saida = document.getElementById("contador");
+            function atualizar() {
+                const t = campo.value.replace(/\r\n/g, "\n");
+                const chars = Array.from(t);
+                const ehGsm = chars.every(c => gsm.includes(c) || ext.includes(c));
+                let n, partes;
+                if (ehGsm) {
+                    n = chars.reduce((s, c) => s + (ext.includes(c) ? 2 : 1), 0);
+                    partes = n <= 160 ? 1 : Math.ceil(n / 153);
+                } else {
+                    n = chars.reduce((s, c) => s + (c.codePointAt(0) > 0xFFFF ? 2 : 1), 0);
+                    partes = n <= 70 ? 1 : Math.ceil(n / 67);
+                }
+                saida.textContent = t ? `${n} caracteres · ${partes} SMS${ehGsm ? "" : " · com acentos/emoji (UCS-2)"}` : "";
+            }
+            campo.addEventListener("input", atualizar);
+            atualizar();
+        })();
+    </script>
+{% endblock %}

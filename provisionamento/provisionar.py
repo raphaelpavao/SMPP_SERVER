@@ -8,6 +8,8 @@ Uso:
     python provisionar.py config/gateway.json
 
 Variáveis: JCLI_HOST (127.0.0.1), JCLI_PORT (8990), JCLI_USER, JCLI_PASSWORD.
+Textos do JSON aceitam ${VARIAVEL} do ambiente (ex.: senha e token do portal),
+para que segredos fiquem só no .env.
 
 Atenção: usuários são removidos e recriados, então saldos/quotas definidos
 manualmente no jcli se perdem. Defina tudo no JSON.
@@ -100,13 +102,27 @@ class JCli:
             self.sock.close()
 
 
+def expandir_variaveis(valor):
+    """Troca ${VAR} pelo valor do ambiente em todos os textos do JSON."""
+    if isinstance(valor, str):
+        expandido = os.path.expandvars(valor)
+        if "${" in expandido:
+            raise SystemExit(f"Variável de ambiente não definida em: {valor}")
+        return expandido
+    if isinstance(valor, list):
+        return [expandir_variaveis(v) for v in valor]
+    if isinstance(valor, dict):
+        return {k: expandir_variaveis(v) for k, v in valor.items()}
+    return valor
+
+
 def ids_existentes(jcli, comando):
     """Lista os ids (primeira coluna, prefixada por #) de um comando -l."""
     saida = jcli.cmd(comando, tolerar_erro=True)
     ids = []
     for linha in saida.splitlines():
         m = re.match(r"#(\S+)", linha.strip())
-        if m and not m.group(1).lower().startswith(("connector", "user", "group", "filter", "order")):
+        if m and not m.group(1).lower().startswith(("connector", "user", "group", "filter", "order", "httpcc")):
             ids.append(m.group(1))
     return ids
 
@@ -125,6 +141,8 @@ def provisionar(jcli, cfg):
     for cid in ids_existentes(jcli, "smppccm -l"):
         jcli.cmd(f"smppccm -0 {cid}", tolerar_erro=True)
         jcli.cmd(f"smppccm -r {cid}", tolerar_erro=True)
+    for cid in ids_existentes(jcli, "httpccm -l"):
+        jcli.cmd(f"httpccm -r {cid}", tolerar_erro=True)
 
     # 2. Fornecedores (conectores SMPP cliente)
     for f in cfg["fornecedores"]:
@@ -153,7 +171,12 @@ def provisionar(jcli, cfg):
         ])
         print(f"Cliente {c['uid']} criado")
 
-    # 5. Rotas MO: por número do cliente e uma padrão
+    # 5. Conectores HTTP (para onde o Jasmin entrega MO por HTTP, ex.: o portal)
+    for h in cfg.get("conectores_http", []):
+        jcli.sessao("httpccm -a", [("cid", h["cid"]), ("url", h["url"]), ("method", h.get("method", "POST"))])
+        print(f"Conector HTTP {h['cid']} criado")
+
+    # 6. Rotas MO: por número do cliente e uma padrão
     ordem = 10
     for c in cfg.get("clientes", []):
         for i, regex in enumerate(c.get("mo_destinos", []), 1):
@@ -171,14 +194,22 @@ def provisionar(jcli, cfg):
             ])
             print(f"Rota MO {regex} -> {c['uid']}")
             ordem += 10
-    if cfg.get("cliente_mo_padrao"):
+    if cfg.get("mo_padrao_http"):
+        # Todo MO que não casou com um cliente SMPP vai para o conector HTTP (o portal
+        # descobre o dono pelo DID de destino).
+        jcli.sessao("morouter -a", [
+            ("type", "DefaultRoute"),
+            ("connector", f"http({cfg['mo_padrao_http']})"),
+        ])
+        print(f"Rota MO padrão -> http({cfg['mo_padrao_http']})")
+    elif cfg.get("cliente_mo_padrao"):
         jcli.sessao("morouter -a", [
             ("type", "DefaultRoute"),
             ("connector", f"smpps({cfg['cliente_mo_padrao']})"),
         ])
         print(f"Rota MO padrão -> {cfg['cliente_mo_padrao']}")
 
-    # 6. Sobe os fornecedores e grava
+    # 7. Sobe os fornecedores e grava
     for f in cfg["fornecedores"]:
         jcli.cmd(f"smppccm -1 {f['cid']}")
     jcli.cmd("persist")
@@ -188,7 +219,7 @@ def provisionar(jcli, cfg):
 def main():
     caminho = sys.argv[1] if len(sys.argv) > 1 else "config/gateway.json"
     with open(caminho, encoding="utf-8") as fp:
-        cfg = json.load(fp)
+        cfg = expandir_variaveis(json.load(fp))
 
     host = os.environ.get("JCLI_HOST", "127.0.0.1")
     port = int(os.environ.get("JCLI_PORT", "8990"))

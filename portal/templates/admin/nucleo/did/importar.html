@@ -1,0 +1,67 @@
+{% extends "admin/base_site.html" %}
+{% load i18n unfold %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+    {% if resultado %}
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+            {% component "unfold/components/card.html" %}
+                <p class="text-subtle">Novos cadastrados</p>
+                <p class="font-semibold text-important text-2xl">{{ resultado.criados|length }}</p>
+            {% endcomponent %}
+            {% component "unfold/components/card.html" %}
+                <p class="text-subtle">Saíram do estoque</p>
+                <p class="font-semibold text-important text-2xl">{{ resultado.atribuidos_do_estoque|length }}</p>
+            {% endcomponent %}
+            {% component "unfold/components/card.html" %}
+                <p class="text-subtle">Já estavam assim</p>
+                <p class="font-semibold text-important text-2xl">{{ resultado.ja_cadastrados|length }}</p>
+            {% endcomponent %}
+            {% component "unfold/components/card.html" %}
+                <p class="text-subtle">Recusados</p>
+                <p class="font-semibold text-important text-2xl">{{ resultado.total_recusado }}</p>
+            {% endcomponent %}
+        </div>
+
+        {% if resultado.de_outro_provedor or resultado.invalidos or resultado.repetidos %}
+            <div style="margin-bottom:1.5rem;">
+                {% component "unfold/components/card.html" with title="Itens não gravados" %}
+                    {% if resultado.de_outro_provedor %}
+                        <p class="font-semibold text-important">Pertencem a outro provedor (transfira um a um, se for o caso):</p>
+                        <ul style="margin:.5rem 0 1rem 1.25rem; list-style:disc;">
+                            {% for numero, provedor in resultado.de_outro_provedor %}<li>{{ numero }} — {{ provedor }}</li>{% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if resultado.invalidos %}
+                        <p class="font-semibold text-important">Inválidos:</p>
+                        <ul style="margin:.5rem 0 1rem 1.25rem; list-style:disc inside; max-height:15rem; overflow-y:auto;">
+                            {% for texto, motivo in resultado.invalidos %}<li>“{{ texto }}”: {{ motivo }}</li>{% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if resultado.repetidos %}
+                        <p class="font-semibold text-important">Repetidos na própria lista (considerados uma vez):</p>
+                        <p class="text-subtle" style="margin-top:.5rem;">{{ resultado.repetidos|join:", " }}</p>
+                    {% endif %}
+                {% endcomponent %}
+            </div>
+        {% endif %}
+    {% endif %}
+
+    {% component "unfold/components/card.html" with title="Importar DIDs" description="Cole a lista ou envie um arquivo. Nada é sobrescrito: DIDs de outro provedor ficam como estão." %}
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                {% include "unfold/helpers/form_errors.html" with errors=form.non_field_errors %}
+            {% endif %}
+            {% for field in form %}
+                {% include "unfold/helpers/field.html" with field=field %}
+            {% endfor %}
+            <div style="display:flex; gap:.5rem;">
+                {% component "unfold/components/button.html" with submit=1 icon="upload" %}Importar{% endcomponent %}
+                {% url "admin:nucleo_did_changelist" as voltar %}
+                {% component "unfold/components/button.html" with href=voltar variant="default" %}Voltar para DIDs{% endcomponent %}
+            </div>
+        </form>
+    {% endcomponent %}
+{% endblock %}

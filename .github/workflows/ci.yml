@@ -47,3 +47,38 @@ jobs:
           [ -f saida.txt ] && anotar cliente_teste < saida.txt
           docker compose logs --no-color --tail 40 jasmin | anotar jasmin
           docker compose --profile dev logs --no-color --tail 20 smsc-simulador | anotar simulador
+
+  portal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: portal
+          POSTGRES_USER: portal
+          POSTGRES_PASSWORD: portal
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U portal -d portal"
+          --health-interval 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: portal
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # Roda no PostgreSQL de propósito: há diferenças em relação ao SQLite
+      # (ex.: select_for_update com join) que só aparecem nele.
+      - name: Testes do portal
+        env:
+          PORTAL_DB_HOST: localhost
+          PORTAL_DB_PASSWORD: portal
+        run: |
+          pip install -r requirements.txt
+          python manage.py makemigrations --check --dry-run
+          python manage.py test nucleo

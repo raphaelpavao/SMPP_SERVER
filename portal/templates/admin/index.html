@@ -1,0 +1,48 @@
+{% extends "admin/base.html" %}
+{% load i18n unfold %}
+
+{% block title %}Painel | {{ site_title }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+    {# Layout em style inline: o CSS do Unfold só traz as classes que ele próprio usa. #}
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+        {% for rotulo, valor, icone in indicadores %}
+            {% component "unfold/components/card.html" %}
+                <p class="text-subtle">{{ rotulo }}</p>
+                <p class="font-semibold text-important text-2xl">{{ valor }}</p>
+            {% endcomponent %}
+        {% endfor %}
+    </div>
+
+    {% if ultimos_eventos is not None %}
+    {% component "unfold/components/card.html" with title="Últimas movimentações de DIDs" %}
+        {% if ultimos_eventos %}
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="text-subtle">
+                        <th class="py-2">Data</th><th class="py-2">DID</th><th class="py-2">Evento</th><th class="py-2">De</th><th class="py-2">Para</th><th class="py-2">Por</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ev in ultimos_eventos %}
+                        <tr style="border-top:1px solid var(--color-base-200, #e5e7eb);">
+                            <td class="py-2">{{ ev.data|date:"d/m/Y H:i" }}</td>
+                            <td class="py-2 text-important">{{ ev.did }}</td>
+                            <td class="py-2">{{ ev.get_evento_display }}</td>
+                            <td class="py-2">{{ ev.provedor_anterior|default:"estoque" }}</td>
+                            <td class="py-2">{{ ev.provedor_novo|default:"estoque" }}</td>
+                            <td class="py-2">{{ ev.usuario|default:"—" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-subtle">Nenhum DID cadastrado ainda.</p>
+        {% endif %}
+    {% endcomponent %}
+    {% endif %}
+{% endblock %}

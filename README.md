@@ -22,6 +22,7 @@ Clientes (ESME) ──SMPP:2775──▶ Jasmin ──SMPP──▶ SMSC do forn
 | `provisionamento/provisionar.py` | Aplica o `gateway.json` no Jasmin (via jcli) e faz `persist` |
 | `simulador/` | SMSC falso para testes: responde, manda DLR e faz eco de MO |
 | `ferramentas/cliente_teste.py` | Cliente SMPP de linha de comando para testar envio/DLR/MO |
+| `portal/` | Portal TIP (Django): provedores, DIDs e usuários |
 
 `.env` e `config/gateway.json` têm senhas e **não vão para o git**.
 
@@ -70,6 +71,34 @@ submit_sm/resposta/DLR e grava na tabela `submit_log`). O Jasmin sobe com
 O painel altera o Jasmin pelo jcli. Se você usar o painel, **não rode o
 `provisionar`** no mesmo ambiente: ele recria tudo a partir do `gateway.json` e
 apaga o que foi feito pelo painel.
+
+## Portal TIP (provedores e DIDs)
+
+Gestão da operação: cadastro de **provedores** (clientes da TIP que revendem os
+DIDs), **DIDs** móveis da Surf (com importação em lote por lista, CSV ou faixa)
+e **usuários**. Usuário sem provedor é da equipe TIP e edita tudo; usuário
+vinculado a um provedor só consulta os DIDs daquele provedor.
+
+**Mensagens:** "Enviar SMS" sai pelo DID escolhido (via API HTTP do Jasmin, com
+o usuário `portal`); o status é atualizado pelo DLR. SMS recebidos nos DIDs (MO)
+chegam do Jasmin ao portal e aparecem em "Recebidas" para o dono do DID. Para
+isso o Jasmin precisa do usuário `portal`, do conector HTTP e da rota MO padrão
+(ver `config/gateway.example.json`); `PORTAL_JASMIN_SENHA` e
+`PORTAL_INTERNO_TOKEN` ficam no `.env` e o `provisionar` os aplica.
+
+```bash
+docker compose --profile portal up -d --build
+```
+
+Acesse http://localhost:8000. No `.env`: `PORTAL_SECRET_KEY`, `PORTAL_DB_PASSWORD`
+e, para criar o administrador no primeiro start, `PORTAL_ADMIN_USER` e
+`PORTAL_ADMIN_PASSWORD` (troque a senha pelo portal depois).
+
+Testes (no PostgreSQL do compose):
+
+```bash
+docker compose --profile portal run --rm --no-deps portal python manage.py test nucleo
+```
 
 ## Administração (jcli)
 

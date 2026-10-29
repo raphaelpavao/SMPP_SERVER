@@ -1,0 +1,136 @@
+# Traduções dos textos do django-unfold que não têm pt-BR no pacote.
+# O .mo é gerado no build da imagem por locale/compilar.py.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: pt_BR\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Welcome back to"
+msgstr "Boas-vindas ao"
+
+msgid "Type to search"
+msgstr "Digite para buscar"
+
+msgid "Filters"
+msgstr "Filtros"
+
+msgid "Apply Filters"
+msgstr "Aplicar filtros"
+
+msgid "Reset filters"
+msgstr "Limpar filtros"
+
+msgid "Clear all filters"
+msgstr "Limpar todos os filtros"
+
+msgid "Toggle filter"
+msgstr "Mostrar/ocultar filtro"
+
+msgid "Toggle sidebar"
+msgstr "Mostrar/ocultar menu"
+
+msgid "Toggle dark/light mode"
+msgstr "Alternar modo claro/escuro"
+
+msgid "Toggle password visibility"
+msgstr "Mostrar/ocultar senha"
+
+msgid "Dark"
+msgstr "Escuro"
+
+msgid "Light"
+msgstr "Claro"
+
+msgid "System"
+msgstr "Sistema"
+
+msgid "General"
+msgstr "Geral"
+
+msgid "No results found"
+msgstr "Nenhum resultado"
+
+msgid "Nothing matched your search"
+msgstr "Nada corresponde à sua busca"
+
+msgid "This page yielded into no results."
+msgstr "Nenhum registro encontrado."
+
+msgid "No data"
+msgstr "Sem dados"
+
+msgid "Show counts"
+msgstr "Mostrar contagens"
+
+msgid "Hide counts"
+msgstr "Ocultar contagens"
+
+msgid "Select action"
+msgstr "Selecionar ação"
+
+msgid "Select action to run"
+msgstr "Selecione a ação"
+
+msgid "Run"
+msgstr "Executar"
+
+msgid "Run the selected action"
+msgstr "Executar a ação selecionada"
+
+msgid "Select record"
+msgstr "Selecionar registro"
+
+msgid "Clear selection"
+msgstr "Limpar seleção"
+
+msgid "Recent searches"
+msgstr "Buscas recentes"
+
+msgid "All applications"
+msgstr "Todas as seções"
+
+msgid "Add row"
+msgstr "Adicionar linha"
+
+msgid "Go back"
+msgstr "Voltar"
+
+msgid "Navigate"
+msgstr "Navegar"
+
+msgid "Open command tool"
+msgstr "Abrir busca rápida"
+
+msgid "Open shortcuts list"
+msgstr "Ver atalhos de teclado"
+
+msgid "Available shortcuts"
+msgstr "Atalhos disponíveis"
+
+msgid "Global shortcuts"
+msgstr "Atalhos gerais"
+
+msgid "Changelist shortcuts"
+msgstr "Atalhos da lista"
+
+msgid "Command tool shortcuts"
+msgstr "Atalhos da busca rápida"
+
+msgid "Create new record"
+msgstr "Criar registro"
+
+msgid "Toggle sorting"
+msgstr "Alternar ordenação"
+
+msgid "Remove from sorting"
+msgstr "Remover da ordenação"
+
+msgid "This item will be deleted."
+msgstr "Este item será removido."
+
+msgid "Submit"
+msgstr "Enviar"
+
+msgid "Click to download"
+msgstr "Clique para baixar"

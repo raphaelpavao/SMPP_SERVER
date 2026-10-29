@@ -4,6 +4,7 @@
 #   docker compose --profile dev up -d         -> + simulador de SMSC para testes locais
 #   docker compose run --rm provisionar        -> aplica config/gateway.json no Jasmin
 #   docker compose --profile painel up -d      -> + Jasmin Web Panel em http://localhost:8999
+#   docker compose --profile portal up -d      -> + portal TIP (provedores e DIDs) em http://localhost:8000
 
 name: smpp-gateway
 
@@ -116,6 +117,9 @@ services:
       JCLI_USER: ${JCLI_USER:-jcliadmin}
       JCLI_PASSWORD: ${JCLI_PASSWORD:-jclipwd}
       PROVISIONAR_DEBUG: ${PROVISIONAR_DEBUG:-0}
+      # Usados no gateway.json como ${...} (usuário do portal no Jasmin e retorno de MO)
+      PORTAL_JASMIN_SENHA: ${PORTAL_JASMIN_SENHA:-}
+      PORTAL_INTERNO_TOKEN: ${PORTAL_INTERNO_TOKEN:-}
     volumes:
       - ./provisionamento:/app:ro
       - ./config:/config:ro
@@ -218,7 +222,58 @@ services:
       jasmin:
         condition: service_started
 
+  # --- Portal TIP: gestão de provedores e DIDs (código em ./portal) --------
+
+  portal:
+    profiles: ["portal"]
+    build: ./portal
+    restart: unless-stopped
+    environment:
+      PORTAL_SECRET_KEY: ${PORTAL_SECRET_KEY:?defina PORTAL_SECRET_KEY no .env}
+      PORTAL_ALLOWED_HOSTS: ${PORTAL_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      PORTAL_CSRF_TRUSTED_ORIGINS: ${PORTAL_CSRF_TRUSTED_ORIGINS:-http://localhost:8000}
+      PORTAL_HTTPS: ${PORTAL_HTTPS:-0}
+      PORTAL_DB_HOST: portal-db
+      PORTAL_DB_PASSWORD: ${PORTAL_DB_PASSWORD:-portal}
+      # Envio pela API HTTP do Jasmin e retorno de DLR/MO (ver gateway.json)
+      PORTAL_JASMIN_URL: http://jasmin:1401
+      PORTAL_JASMIN_USUARIO: portal
+      PORTAL_JASMIN_SENHA: ${PORTAL_JASMIN_SENHA:-}
+      PORTAL_URL_INTERNA: http://portal.interno:8000
+      PORTAL_INTERNO_TOKEN: ${PORTAL_INTERNO_TOKEN:-}
+      # Administrador criado no primeiro start (se ainda não existir)
+      DJANGO_SUPERUSER_USERNAME: ${PORTAL_ADMIN_USER:-}
+      DJANGO_SUPERUSER_PASSWORD: ${PORTAL_ADMIN_PASSWORD:-}
+    ports:
+      - "127.0.0.1:${PORTAL_PORT:-8000}:8000"
+    networks:
+      default:
+        # O Jasmin só aceita URL de conector HTTP com ponto no nome do host.
+        aliases: [portal.interno]
+    depends_on:
+      portal-db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+  portal-db:
+    profiles: ["portal"]
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: portal
+      POSTGRES_USER: portal
+      POSTGRES_PASSWORD: ${PORTAL_DB_PASSWORD:-portal}
+    volumes:
+      - portal-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portal -d portal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
+  portal-db-data:
   painel-public:
   painel-logs:
   painel-db-data:
